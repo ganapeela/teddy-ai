@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Teddy AI - Mobile Trading Terminal</title>
+  <meta name="theme-color" content="#0B0E14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/static/manifest.json">
+  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #0B0E14; color: #F0F6FC; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* Top Bar */
+    .top-bar { background: #151922; border-bottom: 1px solid #232B3B; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+    .inst-pill { background: #1C2230; border: 1px solid #232B3B; border-radius: 20px; padding: 4px 10px; font-size: 13px; font-weight: bold; color: #00E5FF; outline: none; }
+    .status-badge { background: #1C2230; border: 1px solid #232B3B; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: bold; color: #8B949E; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #00E676; box-shadow: 0 0 8px #00E676; }
+    
+    /* Ticker Strip */
+    .ticker-strip { background: #151922; border-bottom: 1px solid #232B3B; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+    .spot-price { font-size: 15px; font-weight: bold; font-family: 'JetBrains Mono', monospace; }
+    .badge-pct { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+    .badge-green { background: rgba(0, 230, 118, 0.15); color: #00E676; }
+    .badge-red { background: rgba(255, 61, 113, 0.15); color: #FF3D71; }
+    .metric-pill { font-size: 11px; color: #8B949E; }
+    .metric-val { font-weight: bold; color: #F0F6FC; }
+
+    /* Tabs */
+    .nav-tabs { display: flex; background: #151922; border-top: 1px solid #232B3B; z-index: 10; }
+    .tab-btn { flex: 1; padding: 10px 0; text-align: center; font-size: 11px; font-weight: 600; color: #8B949E; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .tab-btn.active { color: #00E5FF; }
+
+    /* Content Area */
+    .tab-content { flex: 1; overflow-y: auto; display: none; position: relative; }
+    .tab-content.active { display: flex; flex-direction: column; }
+
+    /* Chart Tab */
+    #chart-container { flex: 1; width: 100%; position: relative; }
+    .legend-strip { background: #151922; padding: 6px 14px; display: flex; gap: 12px; font-size: 10px; color: #8B949E; }
+    .legend-item { display: flex; align-items: center; gap: 4px; font-weight: 600; }
+    .legend-color { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* Bottom Summary Card */
+    .bottom-card { background: #151922; border-top: 1px solid #232B3B; padding: 12px 14px; box-shadow: 0 -4px 15px rgba(0,0,0,0.4); }
+    .verdict-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .verdict-pill { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; }
+    .pill-ce { background: rgba(0, 230, 118, 0.2); color: #00E676; border: 1px solid rgba(0, 230, 118, 0.4); }
+    .pill-pe { background: rgba(255, 61, 113, 0.2); color: #FF3D71; border: 1px solid rgba(255, 61, 113, 0.4); }
+    .pill-wait { background: rgba(255, 179, 0, 0.2); color: #FFB300; border: 1px solid rgba(255, 179, 0, 0.4); }
+    .btn-analyze { background: #00E5FF; color: #0B0E14; border: none; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+    /* Teddy Desk Tab */
+    .desk-view { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .card { background: #151922; border: 1px solid #232B3B; border-radius: 12px; padding: 14px; }
+    .levels-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .level-box { background: #1C2230; border: 1px solid #232B3B; border-radius: 8px; padding: 10px; }
+    .level-title { font-size: 10px; color: #8B949E; margin-bottom: 4px; }
+    .level-val { font-size: 14px; font-weight: bold; font-family: 'JetBrains Mono', monospace; }
+    .inval-box { background: rgba(255, 61, 113, 0.12); border: 1px solid rgba(255, 61, 113, 0.4); border-radius: 10px; padding: 12px; }
+
+    /* Option Chain Tab */
+    .chain-table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
+    .chain-table th { background: #1C2230; padding: 8px; color: #8B949E; font-size: 10px; font-weight: 600; }
+    .chain-table td { padding: 8px 4px; border-bottom: 1px solid #1C2230; }
+    .strike-cell { background: #1C2230; font-weight: bold; color: #00E5FF; }
+  </style>
+</head>
+<body>
+
+  <!-- Top App Bar -->
+  <div class="top-bar">
+    <select id="inst-select" class="inst-pill" onchange="changeInstrument(this.value)">
+      <option value="NIFTY 50">NIFTY 50</option>
+      <option value="BANKNIFTY">BANKNIFTY</option>
+      <option value="SENSEX">SENSEX</option>
+    </select>
+    <div class="status-badge">
+      <span class="dot"></span>
+      <span id="feed-mode">REPLAY 24/7</span>
+    </div>
+  </div>
+
+  <!-- Ticker Strip -->
+  <div class="ticker-strip">
+    <div style="display:flex; align-items:center;">
+      <span class="spot-price" id="spot-price">₹24,450.00</span>
+      <span class="badge-pct badge-green" id="spot-pct">+0.45%</span>
+    </div>
+    <div class="metric-pill">VIX: <span class="metric-val" id="vix-val" style="color:#FFB300;">13.8</span></div>
+    <div class="metric-pill">PCR: <span class="metric-val" id="pcr-val" style="color:#00E676;">1.25</span></div>
+    <div class="metric-pill" id="phase-val" style="background:#1C2230; padding:2px 6px; border-radius:4px;">Morning Trend</div>
+  </div>
+
+  <!-- 1. Chart Screen -->
+  <div id="tab-chart" class="tab-content active">
+    <div class="legend-strip">
+      <div class="legend-item"><span class="legend-color" style="background:#FF9100;"></span>VWAP</div>
+      <div class="legend-item"><span class="legend-color" style="background:#00E5FF;"></span>9 EMA</div>
+      <div class="legend-item"><span class="legend-color" style="background:#E040FB;"></span>20 EMA</div>
+      <div class="legend-item"><span class="legend-color" style="background:#FF5252;"></span>Call Wall</div>
+      <div class="legend-item"><span class="legend-color" style="background:#69F0AE;"></span>Put Wall</div>
+    </div>
+    <div id="chart-container"></div>
+    <div class="bottom-card">
+      <div class="verdict-header">
+        <span class="verdict-pill pill-ce" id="card-verdict">BUY CE (88%)</span>
+        <button class="btn-analyze" onclick="triggerAnalyze()">
+          <span>⚡</span> Analyze Now
+        </button>
+      </div>
+      <div style="font-size:13px; font-weight:bold;" id="card-strike">NIFTY 24500 CE</div>
+      <div style="font-size:11px; color:#8B949E;" id="card-setup">VWAP Pullback + Put Writer Squeeze Breakout</div>
+    </div>
+  </div>
+
+  <!-- 2. Teddy Desk Screen -->
+  <div id="tab-desk" class="tab-content">
+    <div class="desk-view">
+      <div class="card" style="border-color:#00E5FF;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span class="verdict-pill pill-ce" id="desk-verdict" style="font-size:14px;">BUY CE</span>
+          <span style="font-size:12px; color:#00E5FF; font-weight:bold;" id="desk-rr">R:R 1:2.4</span>
+        </div>
+        <div style="font-size:16px; font-weight:bold;" id="desk-strike">NIFTY 24500 CE</div>
+        <div style="font-size:12px; color:#8B949E;" id="desk-setup">SMC Breakout Confluence</div>
+      </div>
+
+      <div class="levels-grid">
+        <div class="level-box">
+          <div class="level-title">SPOT TRIGGER</div>
+          <div class="level-val" style="color:#00E5FF;" id="lvl-trigger">₹24,455.0</div>
+        </div>
+        <div class="level-box">
+          <div class="level-title">OPTION ENTRY ZONE</div>
+          <div class="level-val" style="color:#00E676;" id="lvl-entry">₹145 - ₹155</div>
+        </div>
+        <div class="level-box">
+          <div class="level-title">OPTION STOP LOSS</div>
+          <div class="level-val" style="color:#FF3D71;" id="lvl-sl-opt">₹118.0</div>
+        </div>
+        <div class="level-box">
+          <div class="level-title">SPOT SL (INVALIDATION)</div>
+          <div class="level-val" style="color:#FFB300;" id="lvl-sl-spot">₹24,420.0</div>
+        </div>
+        <div class="level-box" style="grid-column: span 2;">
+          <div class="level-title">TARGETS T1 | T2 | T3</div>
+          <div class="level-val" style="color:#00E676;" id="lvl-targets">₹185 | ₹215 | ₹260</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:11px; font-weight:bold; color:#8B949E; margin-bottom:8px;">WHY THIS TRADE?</div>
+        <div id="desk-why" style="font-size:12px; line-height:1.5; color:#F0F6FC;"></div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:11px; font-weight:bold; color:#8B949E; margin-bottom:8px;">HOW TO MANAGE</div>
+        <div id="desk-how" style="font-size:12px; line-height:1.5; color:#F0F6FC;"></div>
+      </div>
+
+      <div class="inval-box">
+        <div style="font-size:11px; font-weight:bold; color:#FF3D71; margin-bottom:4px;">INVALIDATION WARNING</div>
+        <div id="desk-inval" style="font-size:12px; line-height:1.4;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Option Chain Screen -->
+  <div id="tab-chain" class="tab-content">
+    <table class="chain-table">
+      <thead>
+        <tr>
+          <th>CALL OI</th>
+          <th>CALL LTP</th>
+          <th>STRIKE</th>
+          <th>PUT LTP</th>
+          <th>PUT OI</th>
+        </tr>
+      </thead>
+      <tbody id="chain-body"></tbody>
+    </table>
+  </div>
+
+  <!-- 4. Audit Log Screen -->
+  <div id="tab-log" class="tab-content" style="padding:14px;">
+    <div style="font-size:12px; font-weight:bold; color:#8B949E; margin-bottom:10px;">SIGNAL AUDIT LOG (SQLITE)</div>
+    <div id="log-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('chart', this)">
+      <span>📈</span> Chart
+    </button>
+    <button class="tab-btn" onclick="switchTab('desk', this)">
+      <span>🧠</span> Teddy Desk
+    </button>
+    <button class="tab-btn" onclick="switchTab('chain', this)">
+      <span>📊</span> Option Chain
+    </button>
+    <button class="tab-btn" onclick="switchTab('log', this)">
+      <span>📋</span> Audit Log
+    </button>
+  </div>
+
+  <script>
+    let currentInstrument = 'NIFTY 50';
+    let chart, candleSeries, vwapLine, ema9Line, ema20Line;
+    let ws;
+
+    function initChart() {
+      const container = document.getElementById('chart-container');
+      chart = LightweightCharts.createChart(container, {
+        layout: { background: { color: '#0B0E14' }, textColor: '#8B949E' },
+        grid: { vertLines: { color: 'rgba(35, 43, 59, 0.4)' }, horzLines: { color: 'rgba(35, 43, 59, 0.4)' } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        rightPriceScale: { borderColor: '#232B3B' },
+        timeScale: { borderColor: '#232B3B', timeVisible: true, secondsVisible: false }
+      });
+
+      candleSeries = chart.addCandlestickSeries({
+        upColor: '#00E676', downColor: '#FF3D71',
+        borderUpColor: '#00E676', borderDownColor: '#FF3D71',
+        wickUpColor: '#00E676', wickDownColor: '#FF3D71'
+      });
+
+      vwapLine = chart.addLineSeries({ color: '#FF9100', lineWidth: 1, title: 'VWAP' });
+      ema9Line = chart.addLineSeries({ color: '#00E5FF', lineWidth: 1, title: '9 EMA' });
+      ema20Line = chart.addLineSeries({ color: '#E040FB', lineWidth: 1, title: '20 EMA' });
+
+      window.addEventListener('resize', () => {
+        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      });
+      setTimeout(() => {
+        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      }, 200);
+    }
+
+    async function loadSnapshot() {
+      try {
+        const res = await fetch(`/api/snapshot?instrument=${encodeURIComponent(currentInstrument)}`);
+        const data = await res.json();
+        updateUI(data);
+      } catch (e) {
+        console.error('Fetch error:', e);
+      }
+    }
+
+    function updateUI(data) {
+      document.getElementById('spot-price').innerText = `₹${data.spot_price.toFixed(2)}`;
+      const pctEl = document.getElementById('spot-pct');
+      pctEl.innerText = `${data.price_change_pct >= 0 ? '+' : ''}${data.price_change_pct.toFixed(2)}%`;
+      pctEl.className = `badge-pct ${data.price_change_pct >= 0 ? 'badge-green' : 'badge-red'}`;
+      document.getElementById('vix-val').innerText = data.option_analytics.india_vix.toFixed(1);
+      document.getElementById('pcr-val').innerText = data.option_analytics.pcr.toFixed(2);
+      document.getElementById('phase-val').innerText = data.trap_context.session_phase;
+
+      // Update Candlestick Chart
+      if (data.recent_candles && data.recent_candles.length > 0) {
+        const candleData = data.recent_candles.map((c, idx) => ({
+          time: Math.floor(Date.now() / 1000) - ((data.recent_candles.length - idx) * 300),
+          open: c.open, high: c.high, low: c.low, close: c.close
+        }));
+        candleSeries.setData(candleData);
+
+        // Lines
+        const vwapVal = data.technicals.vwap;
+        const ema9Val = data.technicals.ema_9;
+        const ema20Val = data.technicals.ema_20;
+        vwapLine.setData(candleData.map(c => ({ time: c.time, value: vwapVal })));
+        ema9Line.setData(candleData.map(c => ({ time: c.time, value: ema9Val })));
+        ema20Line.setData(candleData.map(c => ({ time: c.time, value: ema20Val })));
+      }
+
+      // Update Option Chain Table
+      const chainBody = document.getElementById('chain-body');
+      chainBody.innerHTML = '';
+      (data.option_chain || []).forEach(s => {
+        const isAtm = Math.abs(s.strike - data.option_analytics.atm_strike) < 1;
+        const tr = document.createElement('tr');
+        if (isAtm) tr.style.background = 'rgba(0, 229, 255, 0.08)';
+        tr.innerHTML = `
+          <td style="color:#FF3D71; font-weight:bold;">${(s.ce_oi/1000).toFixed(0)}k</td>
+          <td>₹${s.ce_ltp.toFixed(1)}</td>
+          <td class="strike-cell">${s.strike}</td>
+          <td>₹${s.pe_ltp.toFixed(1)}</td>
+          <td style="color:#00E676; font-weight:bold;">${(s.pe_oi/1000).toFixed(0)}k</td>
+        `;
+        chainBody.appendChild(tr);
+      });
+    }
+
+    async function triggerAnalyze() {
+      const btn = document.querySelector('.btn-analyze');
+      btn.innerHTML = 'Analyzing...';
+      try {
+        const res = await fetch(`/api/analyze?instrument=${encodeURIComponent(currentInstrument)}`, { method: 'POST' });
+        const sig = await res.json();
+        applySignal(sig);
+      } catch (e) {
+        console.error('Analyze error:', e);
+      }
+      btn.innerHTML = '<span>⚡</span> Analyze Now';
+    }
+
+    function applySignal(sig) {
+      const isCe = sig.decision === 'BUY_CE';
+      const isPe = sig.decision === 'BUY_PE';
+      const pillClass = isCe ? 'pill-ce' : (isPe ? 'pill-pe' : 'pill-wait');
+
+      document.getElementById('card-verdict').className = `verdict-pill ${pillClass}`;
+      document.getElementById('card-verdict').innerText = `${sig.decision.replace('_', ' ')} (${sig.confidence_score}%)`;
+      document.getElementById('card-strike').innerText = sig.recommended_strike || 'Discipline Mode (Standing Aside)';
+      document.getElementById('card-setup').innerText = sig.setup_type;
+
+      // Teddy Desk
+      document.getElementById('desk-verdict').className = `verdict-pill ${pillClass}`;
+      document.getElementById('desk-verdict').innerText = `${sig.decision.replace('_', ' ')} (${sig.confidence_score}%)`;
+      document.getElementById('desk-rr').innerText = `R:R ${sig.risk_reward}`;
+      document.getElementById('desk-strike').innerText = sig.recommended_strike || sig.instrument;
+      document.getElementById('desk-setup').innerText = sig.setup_type;
+
+      document.getElementById('lvl-trigger').innerText = sig.spot_trigger ? `₹${sig.spot_trigger.toFixed(1)}` : '-';
+      document.getElementById('lvl-entry').innerText = sig.option_entry_zone ? `₹${sig.option_entry_zone[0]} - ₹${sig.option_entry_zone[1]}` : '-';
+      document.getElementById('lvl-sl-opt').innerText = sig.stop_loss_option ? `₹${sig.stop_loss_option}` : '-';
+      document.getElementById('lvl-sl-spot').innerText = sig.stop_loss_spot ? `₹${sig.stop_loss_spot.toFixed(1)}` : '-';
+      document.getElementById('lvl-targets').innerText = sig.targets_option ? sig.targets_option.map(t => `₹${t}`).join(' | ') : '-';
+
+      document.getElementById('desk-why').innerHTML = sig.why_this_trade.map(w => `• ${w}`).join('<br>');
+      document.getElementById('desk-how').innerText = sig.how_to_execute;
+      document.getElementById('desk-inval').innerText = sig.invalidation_warning;
+    }
+
+    async function loadAuditLog() {
+      try {
+        const res = await fetch('/api/signals?limit=15');
+        const list = await res.json();
+        const container = document.getElementById('log-list');
+        container.innerHTML = '';
+        list.forEach(s => {
+          const isCe = s.decision === 'BUY_CE';
+          const isPe = s.decision === 'BUY_PE';
+          const color = isCe ? '#00E676' : (isPe ? '#FF3D71' : '#FFB300');
+          const d = document.createElement('div');
+          d.className = 'card';
+          d.innerHTML = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span style="font-size:11px; font-weight:bold; color:${color};">${s.decision.replace('_', ' ')} (${s.confidence_score}%)</span>
+              <span style="font-size:10px; color:#8B949E;">${s.timestamp}</span>
+            </div>
+            <div style="font-size:13px; font-weight:bold;">${s.recommended_strike || s.instrument}</div>
+            <div style="font-size:11px; color:#8B949E;">${s.setup_type}</div>
+          `;
+          container.appendChild(d);
+        });
+      } catch (e) {}
+    }
+
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(`tab-${name}`).classList.add('active');
+      btn.classList.add('active');
+      if (name === 'chart') setTimeout(() => initChart(), 100);
+      if (name === 'log') loadAuditLog();
+    }
+
+    function changeInstrument(val) {
+      currentInstrument = val;
+      loadSnapshot();
+    }
+
+    function connectWs() {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${window.location.host}/ws`);
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'MARKET_UPDATE' && msg.instrument === currentInstrument) {
+          updateUI(msg.data);
+        } else if (msg.type === 'TEDDY_SIGNAL') {
+          applySignal(msg.data);
+        }
+      };
+      ws.onclose = () => setTimeout(connectWs, 3000);
+    }
+
+    window.onload = () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+      }
+      initChart();
+      loadSnapshot();
+      connectWs();
+      triggerAnalyze();
+    };
+  </script>
+</body>
+</html>
