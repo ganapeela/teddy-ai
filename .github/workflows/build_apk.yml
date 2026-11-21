@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -28,15 +28,16 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Get dependencies
+      - name: Configure Android scaffolding & dependencies
         run: |
           cd android_app
+          flutter create --platforms=android --org com.teddyai.options .
           flutter pub get
 
-      - name: Build APK
+      - name: Build Release APK
         run: |
           cd android_app
-          flutter build apk --release
+          flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
