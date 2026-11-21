@@ -48,7 +48,7 @@ class _InteractiveCandleChartState extends State<InteractiveCandleChart> {
         setState(() {
           _scale = (_baseScale * details.scale).clamp(0.5, 3.0);
           _panOffset = _basePanOffset + (details.focalPointDelta.dx * 0.8);
-          _tapPosition = details.localPoint;
+          _tapPosition = details.localFocalPoint;
         });
       },
       onScaleEnd: (_) {
