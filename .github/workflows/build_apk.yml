@@ -28,12 +28,12 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate clean Android project files
+      - name: Configure Android scaffolding & desugaring
         run: |
           cd android_app
           rm -rf android
           flutter create --platforms=android --org com.teddyai.options .
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>' android/app/src/main/AndroidManifest.xml
+          python configure_android.py
           flutter pub get
 
       - name: Build Release APK
